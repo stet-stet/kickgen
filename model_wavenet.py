@@ -15,21 +15,22 @@ from collections import namedtuple
 # but constants are hardcoded for now, for ease of work in sajibang environment.
 # link : https://github.com/vincentherrmann/pytorch-wavenet/blob/master/wavenet_model.py
 class WaveNetModel(nn.Module):
- def __init__(self, layerinfo):
-  super(WaveNetModel,self).__init()
+ def __init__(self):
+  super(WaveNetModel,self).__init__()
   self.layers = 10
   self.blocks = 4
   self.dilation_channels = 32
   self.residual_channels = 32
   self.skip_channels = 256
+  self.end_channels = 256
   self.classes = 256
   self.kernel_size = 2
-  self.dtype = dtype
-  self.bias=bias
+  self.dtype = torch.FloatTensor
+  self.bias = True
   self.output_length = 10000 # modify this number
   # 1*1 conv to create channels & match dimensions.
   self.conv_one = nn.Conv1d(in_channels = self.classes,
-                            out_channels = residual_channels,
+                            out_channels = self.residual_channels,
                             kernel_size = 1,
                             bias = self.bias)
 
@@ -58,7 +59,7 @@ class WaveNetModel(nn.Module):
                                       kernel_size=self.kernel_size,padding=dilation,dilation=dilation,
                                       bias=self.bias))
   self.end_conv_1 = nn.Conv1d(in_channels = self.skip_channels,
-                            out_channels = self.end_chanels,
+                            out_channels = self.end_channels,
                             kernel_size = 1,
                             bias = True)
   self.end_conv_2 = nn.Conv1d(in_channels = self.end_channels,
@@ -67,7 +68,7 @@ class WaveNetModel(nn.Module):
                             bias = True)
 
  def wavenet(self,input):
-  x = self.start_conv(input)
+  x = self.conv_one(input)
   input_dims = x.shape[2]
   skip = 0
   for i in range(self.blocks * self.layers):
@@ -76,21 +77,21 @@ class WaveNetModel(nn.Module):
    # fun begins
    residual = x
    # input to gated activation
-   filter = self.filter_convs[i](residual)[:,:,input_dims]
+   filter = self.filter_convs[i](residual)[:,:,:input_dims]
    filter = F.tanh(filter)
-   gate = self.gate_convs[i](residual)[:,:,input_dims]
+   gate = self.gate_convs[i](residual)[:,:,:input_dims]
    gate = F.sigmoid(gate)
    x = filter * gate
    # skip
    s = x
-   s = self.skip_convs[i](s)[:,:,input_dims]
+   s = self.skip_convs[i](s)[:,:,:input_dims]
    try:
-    skip = skip[:,:,-s.size(2)]
+    skip = skip[:,:,-s.size(2):]
    except: # except...which?
     skip = 0
    skip = s + skip
    # to next layer iput
-   x = self.residual_convs[i](x)
+   x = self.residual_convs[i](x)[:,:,:input_dims]
    x = x + residual # should pose no problems
   x = F.relu(skip)
   x = F.relu(self.end_conv_1(x))
@@ -102,8 +103,8 @@ class WaveNetModel(nn.Module):
   [n,c,l] = x.size()
   l = self.output_length
   x = x[:,:,-l:]
-  x = x.transpose(1,2).cotiguous()
-  x = x.view(n*l, c)
+  x = x.transpose(1,2).contiguous()
+  x = x.view(n*min(l,x.shape[1]), c)
   return x
 
 

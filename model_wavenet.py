@@ -10,7 +10,8 @@ from collections import namedtuple
 # wavenet_info_constructor = namedtuple("wavenet_info","layers blocks 
 
 
-# Inpl is, for the time being, based on user vincentherrmann's implementation:
+# Impl is, for the time being, based on user vincentherrmann's implementation:
+# but I will not limit output length, since sample length is pretty small anyways.
 # I will refactor this after I fully comprehend everything
 # but constants are hardcoded for now, for ease of work in sajibang environment.
 # link : https://github.com/vincentherrmann/pytorch-wavenet/blob/master/wavenet_model.py
@@ -27,7 +28,6 @@ class WaveNetModel(nn.Module):
   self.kernel_size = 2
   self.dtype = torch.FloatTensor
   self.bias = True
-  self.output_length = 10000 # modify this number
   # 1*1 conv to create channels & match dimensions.
   self.conv_one = nn.Conv1d(in_channels = self.classes,
                             out_channels = self.residual_channels,
@@ -90,9 +90,8 @@ class WaveNetModel(nn.Module):
    except: # except...which?
     skip = 0
    skip = s + skip
-   # to next layer iput
    x = self.residual_convs[i](x)[:,:,:input_dims]
-   x = x + residual # should pose no problems
+   x = x + residual
   x = F.relu(skip)
   x = F.relu(self.end_conv_1(x))
   x = self.end_conv_2(x)
@@ -101,8 +100,7 @@ class WaveNetModel(nn.Module):
  def forward(self,input):
   x = self.wavenet(input)
   [n,c,l] = x.size()
-  l = self.output_length
-  x = x[:,:,-l:]
+  x = x[:,:,:]
   x = x.transpose(1,2).contiguous()
   x = x.view(n*min(l,x.shape[1]), c)
   return x

@@ -53,17 +53,18 @@ class WavenetDataset():
     stophere-=1
    if stophere < -1:
     self.processed_data[n] = data[:stophere+1]
-    self.item_length[n] = self.processed_data[n].shape[0]
+   self.processed_data[n] = np.append(self.processed_data[n],[255 for _ in range(500)]) # 255 means end of sample
+   self.item_length[n] = self.processed_data[n].shape[0] # excluding the "startgen" tag(which is 0)
 
  def get_data(self):
   return self.processed_data
 
  def __getitem__(self,idx): # total data is smaller than 1GB - implementation is allowed to be naive.
-  now_data = self.processed_data[idx]
+  now_data = np.append([0],self.processed_data[idx])[:-1] # 0 means "start generation"
   now_data = torch.from_numpy(now_data).type(torch.LongTensor)
   one_hot = torch.FloatTensor(self.classes, self.item_length[idx]).zero_()
-  one_hot.scatter_(0,now_data[:self.item_length[idx]].unsqueeze(0),1.)
-  target = now_data.unsqueeze(0)
+  one_hot.scatter_(0,now_data.unsqueeze(0),1.)
+  target = torch.from_numpy(self.processed_data[idx]).type(torch.LongTensor).unsqueeze(0)
   return one_hot,target
 
  def __len__(self):

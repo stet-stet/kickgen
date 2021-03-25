@@ -78,9 +78,9 @@ class WaveNetModel(nn.Module):
    residual = x
    # input to gated activation
    filter = self.filter_convs[i](residual)[:,:,:input_dims]
-   filter = F.tanh(filter)
+   filter = torch.tanh(filter)
    gate = self.gate_convs[i](residual)[:,:,:input_dims]
-   gate = F.sigmoid(gate)
+   gate = torch.sigmoid(gate)
    x = filter * gate
    # skip
    s = x

@@ -1,0 +1,5 @@
+congregation_V3.zip
+dataset/*
+dataset_hashed/*
+__pycache__/
+get.sh

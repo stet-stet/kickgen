@@ -40,6 +40,7 @@ class WavenetDataset():
     if not file.endswith(".wav"): continue
     full_file = root+'/'+file
     file_data, _ = lr.load(path=full_file, sr=self.sampling_rate, mono=self.mono) #np.ndarray
+    if file_data.shape[0] > 100000: continue
     if self.normalize:
      file_data = lr.util.normalize(file_data)
     quantized_data = quantize_data(file_data,self.classes).astype(self.dtype)
@@ -60,12 +61,14 @@ class WavenetDataset():
   return self.processed_data
 
  def __getitem__(self,idx): # total data is smaller than 1GB - implementation is allowed to be naive.
-  now_data = np.append([0],self.processed_data[idx])[:-1] # 0 means "start generation"
+  now_data = np.append([127],self.processed_data[idx])[:-1] # 0 means "start generation"
   now_data = torch.from_numpy(now_data).type(torch.LongTensor)
   one_hot = torch.FloatTensor(self.classes, self.item_length[idx]).zero_()
   one_hot.scatter_(0,now_data.unsqueeze(0),1.)
   target = torch.from_numpy(self.processed_data[idx]).type(torch.LongTensor).unsqueeze(0)
-  return one_hot,target
+  identity = torch.FloatTensor(1,len(self.processed_data),1).zero_()
+  identity[0,idx,0] = 1.
+  return one_hot,target,identity
 
  def __len__(self):
   return len(self.processed_data)
